@@ -1,0 +1,120 @@
+---
+title: "ImportingSpectralData"
+author: "Laura Ospina-Rozo"
+date: "09/03/2022"
+output: 
+  html_document: 
+    highlight: zenburn
+    toc: true
+  pdf_document: 
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
+    latex_engine: xelatex
+toc-title: "Table of contents"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This template script was created with the purpose of importing data from the dual spec or the integrating sphere. The input should be files created by Ocean Optics software. 
+
+# Instructions
+
+## SpecData considerations
+
+Since we can take multiple measurements in the spec for each session, it is better to import the data in R to create only one file per session, so the data is easy to handle. This code, also cuts the output file to exclude the unnecessary rows.
+
+Note: it is important to write down the sample codes and measuring geometry for each of the files produced in OceanOptics when it is used with the function of "file counting". The easiest way to change the names is to have a .csv file with the names of each file (instructions on how to change names will be explained below).
+
+## .txt file
+
+First create a .txt file with the names of the files in the folder. Save it in the same folder than the data. 
+
+Shortcuts to do this is: 
+
+- For old Windows versions 
+
+Shift+right click on a folder to open the Powershell window and type dir /b > dirlist.txt
+
+- For Windows 10
+Right click in the folder, then click Powershell 7 and open here. Type cmd ad enter, then type dir /b > dirlist.txt
+
+Delete the first row of this file, if you created it automatically, because it is an extra heading that is not a name in your files. 
+
+
+## Set up R Function
+
+In the following code, change the directory "C:/Users/laura/Dropbox/Beetle Project/Laura - 2018/Core/Results/R projects/Beetle Colour Measurements/Spec basics/Data/Raw data starting on 20190426/20190428_measuring_Iridescence_01/" for the address of the folder that contains your data. Change the name of the final output file, here called "OUTPUT.txt" to the desired name of the final txt file with all the curves combined.
+
+```{r}
+
+spec <- function() {
+  allspecs <- NULL
+  fnames <- scan(file.choose(), what = "character", quiet = TRUE)
+  print(fnames)
+  for (i in fnames) {
+    
+    dat <- read.table(paste("C:/Users/laura/Dropbox/Beetle Project/Laura - 2018/Core/Results/R projects/Beetle Colour Measurements/Spec basics/Data/Raw data starting on 20190426/20190428_measuring_Iridescence_01/",i, sep=""), skip =255)
+    names(dat)
+    res <- ksmooth(dat[,1], dat[,2], kernel="box",bandwidth=10, x.points=seq(300, 2100, 2))
+    allspecs <- cbind(allspecs, res$y)
+    write.table(res, paste("C:/Users/laura/Dropbox/Beetle Project/Laura - 2018/Core/Results/R projects/Beetle Colour Measurements/Spec basics/Data/Raw data starting on 20190426/20190428_measuring_Iridescence_01/",i, ".out", sep=""))
+  }
+  
+  colnames(allspecs) <- fnames
+  allspecs <- cbind(res$x, allspecs)
+  colnames(allspecs)[1] <- "wavelength" 
+  allspecs <- data.frame(allspecs)
+  write.table(allspecs,"C:/Users/laura/Dropbox/Beetle Project/Laura - 2018/Core/Results/ R projects/Beetle Colour Measurements/Spec basics/Data/Raw data starting on 20190426/20190428_measuring_Iridescence_01/OUTPUT.txt")
+}
+
+```
+
+## Run the function 
+
+```{r}
+spec()
+```
+
+In the pop up window, select the .txt file with the names. As a result, R will create a new file with the name you specified. In this example “OUTPUT.txt” 
+
+## Final details
+
+Once the file combining all the spec curves was created, open it in excel and make sure the headings match. Usually, there is an extra column at the beginning without any header that is just the numbers of the rows. Delete this column and fix the headers before importing the data. Save as .csv
+
+Now, you can work with this file in R normally. 
+
+## Change column names
+
+Note that in this case, the file `Names` contains only one column called `code` and the same number of rows as columns in your consolidated frame disregarding the first one `wl`. 
+
+Thus, rows in Names = (Columns in Consolidated - 1)
+
+```{r}
+# Import the two data frames:
+Consolidated <- read.csv ("../Data/consolidated.csv")
+Names <- read.csv ("../Data/names.csv")
+
+# rename columns
+names(Consolidated)<- c("wl", Names$code)
+
+```
+
+## Convert to an rspec object
+
+```{r}
+
+library(pavo)
+Consolidated <- as.rspec(Consolidated)
+
+```
+
+
+
+
